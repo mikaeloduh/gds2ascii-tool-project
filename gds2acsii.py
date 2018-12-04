@@ -9,14 +9,14 @@
 #                                                                    #
 ######################################################################
 
-
+import sys
 import struct
 import json
 
 
 # Reading Hex stream.
 #
-# input : Hex format from raw file
+# input  : Hex format from raw file
 # return : (list) [ record length, [record type, data type], [data1, data2, ...] ]
 def readStream(stream):
     try:
@@ -38,8 +38,8 @@ def readStream(stream):
 
 # Reading Hex stream.
 #
-# input : (list) [ record length, [record type, data type], [data1, data2, ...] ]
-# return :  (string) record name 
+# input  : (list) [ record length, [record type, data type], [data1, data2, ...] ]
+# return : (string) record name 
 def appendName(record):
     name_list = {0x00 : 'HEADER',
                 0x01 : 'BGNLIB',
@@ -90,8 +90,8 @@ def appendName(record):
 
 # Extracting Hex Data to readable ASCii
 #
-# input : (list) [ record length, [record type, data type], [data1, data2, ...] ]
-# return :  (list) [ASCii data, ASCii data, ... ]
+# input  : (list) [ record length, [record type, data type], [data1, data2, ...] ]
+# return : (list) [ASCii data, ASCii data, ... ]
 def extractData(record):
     data = []
     if record[1][1] == 0x00:
@@ -125,22 +125,28 @@ def extractData(record):
             data.append( struct.unpack('>c', record[2][i])[0].decode("utf-8") )
         return data
 
-# Main
-#
-asciiOut = []
-inputFile = 'example.gds'
-outputFile = 'output.json'
+# Main 
+# Command argument 1 : input .gds file path
+# Command argument 2 : output file path
+def main():
+    inputFile = sys.argv[1]
+    outputFile = sys.argv[2]
+    asciiOut = []
 
-with open(inputFile, mode='rb') as ifile:   
+    with open(inputFile, mode='rb') as ifile:   
+        while True:
+            record = readStream(ifile)
+            data = extractData(record)
+            name = appendName(record)
+            asciiOut.append([name, data])        
+            print([name, data])
+            if record[1][0] == 0x04:
+                break
 
-    while True:
-        record = readStream(ifile)
-        data = extractData(record)
-        name = appendName(record)
-        asciiOut.append([name, data])        
-        print([name, data])
-        if record[1][0] == 0x04:
-            break
+        with open(outputFile, 'w') as ofile:
+            json.dump(asciiOut, ofile, indent=4)
 
-    with open(outputFile, 'w') as ofile:
-        json.dump(asciiOut, ofile, indent=4)
+
+if __name__ == '__main__':
+    main()
+    
