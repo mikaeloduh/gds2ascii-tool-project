@@ -11,5 +11,5 @@ This is an utility for convert GDSII HEX stream data to readable ASCII format. G
 Open Terminal and run this command:
 
 ```
-python3 gds2acsii.py <input.gds> <output.json>
+python3 gds2ascii.py <input.gds> <output.json>
 ```
