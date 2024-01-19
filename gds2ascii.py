@@ -88,6 +88,19 @@ def appendName(record):
                 }
     return name_list[record[1][0]]
 
+def unpack_8byte_real(data):
+    e = (data[0] & 0x7F) - 64
+    s = (data[0] & 0x80) >> 7
+
+    m = 0
+    for i in range(7):
+        m |= (data[i + 1] & 0xFF) << ((6 - i) * 8)
+
+    d = m
+    d = d * (16.0 ** (e - 14))
+    d = -d if s == 1 else d
+    return d
+
 # Extracting Hex Data to readable ASCii
 #
 # input  : (list) [ record length, [record type, data type], [data1, data2, ...] ]
@@ -117,7 +130,12 @@ def extractData(record):
 
     elif record[1][1] == 0x05:
         for i in list(range(0, (record[0]-4)//8)):
-            data.append( struct.unpack('>d', record[2][i])[0] )
+            # note that we cant just pack into a 8 byte python double
+            # because gdsii 8-byte real number has the form of
+            # SEEEEEEE MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM 
+            # that's different than the IEEE 754 binary64 double format that python "struct" uses
+            # data.append( struct.unpack('>d', record[2][i])[0] ) 
+            data.append(unpack_8byte_real(record[2][i]))
         return data
 
     else:
