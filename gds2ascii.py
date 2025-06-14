@@ -32,14 +32,14 @@ def readStream(stream):
             rec_data.append( stream.read(dat_size[dat_type]) )
             stream.seek(0, 1)
         return [rec_size, [rec_type, dat_type], rec_data]
-    
+
     except:
         return -1
 
 # Reading Hex stream.
 #
 # input  : (list) [ record length, [record type, data type], [data1, data2, ...] ]
-# return : (string) record name 
+# return : (string) record name
 def appendName(record):
     name_list = {0x00 : 'HEADER',
                 0x01 : 'BGNLIB',
@@ -62,31 +62,44 @@ def appendName(record):
                 0x12 : 'SNAME',
                 0x13 : 'COLROW',
                 0x15 : 'NODE',
-                0x16 : 'TEXTTYPE', 
-                0x17 : 'PRESENTATION', 
-                0x19 : 'STRING', 
-                0x1A : 'STRANS', 
-                0x1B : 'MAG', 
-                0x1C : 'ANGLE', 
-                0x1F : 'REFLIBS', 
-                0x20 : 'FONTS', 
-                0x21 : 'PATHTYPE', 
-                0x22 : 'GENERATIONS', 
-                0x23 : 'ATTRATABLE', 
-                0x26 : 'ELFLAGS', 
-                0x2A : 'NODETYPE', 
-                0x2B : 'PROPATTR', 
-                0x2C : 'PROPVALUE', 
-                0x2D : 'BOX', 
-                0x2E : 'BOXTYPE', 
-                0x2F : 'PLEX', 
-                0x32 : 'TAPENUM', 
-                0x33 : 'TAPECODE', 
-                0x36 : 'FORMAT', 
-                0x37 : 'MASK', 
+                0x16 : 'TEXTTYPE',
+                0x17 : 'PRESENTATION',
+                0x19 : 'STRING',
+                0x1A : 'STRANS',
+                0x1B : 'MAG',
+                0x1C : 'ANGLE',
+                0x1F : 'REFLIBS',
+                0x20 : 'FONTS',
+                0x21 : 'PATHTYPE',
+                0x22 : 'GENERATIONS',
+                0x23 : 'ATTRATABLE',
+                0x26 : 'ELFLAGS',
+                0x2A : 'NODETYPE',
+                0x2B : 'PROPATTR',
+                0x2C : 'PROPVALUE',
+                0x2D : 'BOX',
+                0x2E : 'BOXTYPE',
+                0x2F : 'PLEX',
+                0x32 : 'TAPENUM',
+                0x33 : 'TAPECODE',
+                0x36 : 'FORMAT',
+                0x37 : 'MASK',
                 0x38 : 'ENDMASKS'
                 }
     return name_list[record[1][0]]
+
+def unpack_4byte_real(data):
+    e = (data[0] & 0x7F) - 64
+    s = (data[0] & 0x80) >> 7
+
+    m = 0
+    for i in range(3):
+        m |= (data[i + 1] & 0xFF) << ((2 - i) * 8)
+
+    d = m
+    d = d * (16.0 ** (e - 6))
+    d = -d if s == 1 else d
+    return d
 
 def unpack_8byte_real(data):
     e = (data[0] & 0x7F) - 64
@@ -116,7 +129,7 @@ def extractData(record):
     elif record[1][1] == 0x02:
         for i in list(range(0, (record[0]-4)//2)):
             data.append( struct.unpack('>h', record[2][i])[0] )
-        return data 
+        return data
 
     elif record[1][1] == 0x03:
         for i in list(range(0, (record[0]-4)//4)):
@@ -125,16 +138,16 @@ def extractData(record):
 
     elif record[1][1] == 0x04:
         for i in list(range(0, (record[0]-4)//4)):
-            data.append( struct.unpack('>f', record[2][i])[0] )
+            data.append(unpack_4byte_real(record[2][i]))
         return data
 
     elif record[1][1] == 0x05:
         for i in list(range(0, (record[0]-4)//8)):
             # note that we cant just pack into a 8 byte python double
             # because gdsii 8-byte real number has the form of
-            # SEEEEEEE MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM 
+            # SEEEEEEE MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM
             # that's different than the IEEE 754 binary64 double format that python "struct" uses
-            # data.append( struct.unpack('>d', record[2][i])[0] ) 
+            # data.append( struct.unpack('>d', record[2][i])[0] )
             data.append(unpack_8byte_real(record[2][i]))
         return data
 
@@ -143,7 +156,7 @@ def extractData(record):
             data.append( struct.unpack('>c', record[2][i])[0].decode("utf-8") )
         return data
 
-# Main 
+# Main
 # Command argument 1 : input .gds file path
 # Command argument 2 : output file path
 def main():
@@ -151,12 +164,12 @@ def main():
     outputFile = sys.argv[2]
     asciiOut = []
 
-    with open(inputFile, mode='rb') as ifile:   
+    with open(inputFile, mode='rb') as ifile:
         while True:
             record = readStream(ifile)
             data = extractData(record)
             name = appendName(record)
-            asciiOut.append([name, data])        
+            asciiOut.append([name, data])
             print([name, data])
             if record[1][0] == 0x04:
                 break
@@ -167,4 +180,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
